@@ -38,6 +38,7 @@ function showAuth(mode) {
     document.getElementById('auth-submit').innerText = mode === 'login' ? 'Log In' : 'Sign Up';
     document.querySelector('.toggle-auth').innerText = mode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in";
     document.getElementById('auth-error').innerText = '';
+    document.getElementById('auth-role').style.display = mode === 'login' ? 'none' : 'block';
     document.getElementById('auth-modal').style.display = 'flex';
 }
 
@@ -54,11 +55,18 @@ function updateNavState() {
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('user-section').style.display = 'flex';
         document.getElementById('user-email').innerText = currentUser.email;
-        document.getElementById('nav-dashboard').style.display = 'inline-block';
+        if (currentUser.role === 'admin') {
+            document.getElementById('nav-admin-dashboard').style.display = 'inline-block';
+            document.getElementById('nav-dashboard').style.display = 'none';
+        } else {
+            document.getElementById('nav-dashboard').style.display = 'inline-block';
+            document.getElementById('nav-admin-dashboard').style.display = 'none';
+        }
     } else {
         document.getElementById('auth-section').style.display = 'flex';
         document.getElementById('user-section').style.display = 'none';
         document.getElementById('nav-dashboard').style.display = 'none';
+        document.getElementById('nav-admin-dashboard').style.display = 'none';
         showPage('home');
     }
 }
@@ -68,6 +76,7 @@ async function handleAuth(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
+    const role = currentAuthMode === 'register' ? document.getElementById('auth-role').value : 'user';
     const errorEl = document.getElementById('auth-error');
     errorEl.innerText = 'Loading...';
 
@@ -77,7 +86,7 @@ async function handleAuth(e) {
         const res = await fetch(`${API.auth}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, role: 'user' })
+            body: JSON.stringify({ email, password, role })
         });
         const data = await res.json();
         
@@ -89,6 +98,12 @@ async function handleAuth(e) {
         
         closeModals();
         updateNavState();
+        
+        if (currentUser.role === 'admin') {
+            showPage('admin-dashboard');
+        } else {
+            showPage('home');
+        }
     } catch (err) {
         errorEl.innerText = err.message;
     }
@@ -208,5 +223,48 @@ async function fetchMyBookings() {
         `).join('');
     } catch (err) {
         list.innerHTML = '<p class="error-text">Failed to load bookings.</p>';
+    }
+}
+
+async function handleAddWash(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById('add-wash-error');
+    const successEl = document.getElementById('add-wash-success');
+    errorEl.innerText = '';
+    successEl.innerText = 'Listing car wash...';
+
+    const payload = {
+        name: document.getElementById('wash-name').value,
+        location: document.getElementById('wash-location').value,
+        slot_capacity: parseInt(document.getElementById('wash-capacity').value),
+        rating: 5.0,
+        services: [{
+            name: document.getElementById('service-name').value,
+            price: parseFloat(document.getElementById('service-price').value),
+            duration_minutes: parseInt(document.getElementById('service-duration').value)
+        }]
+    };
+
+    try {
+        const res = await fetch(`${API.wash}/car_washes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to list car wash');
+        
+        successEl.innerText = 'Car Wash successfully listed!';
+        document.getElementById('add-wash-form').reset();
+        
+        // Refresh car washes list in the background
+        fetchCarWashes();
+    } catch (err) {
+        successEl.innerText = '';
+        errorEl.innerText = err.message;
     }
 }

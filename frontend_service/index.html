@@ -15,7 +15,8 @@
         <nav>
             <a href="#" onclick="showPage('home')">Home</a>
             <a href="#" onclick="showPage('washes')">Car Washes</a>
-            <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" style="display:none;">My Dashboard</a>
+            <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" style="display:none;">My Bookings</a>
+            <a href="#" onclick="showPage('admin-dashboard')" id="nav-admin-dashboard" style="display:none;">Owner Dashboard</a>
         </nav>
         <div class="auth-buttons" id="auth-section">
             <button class="btn-outline" onclick="showAuth('login')">Log In</button>
@@ -53,7 +54,7 @@
 
         <!-- DASHBOARD PAGE -->
         <section id="page-dashboard" class="page">
-            <h2>My Dashboard</h2>
+            <h2>My Bookings</h2>
             <div class="dashboard-grid">
                 <div class="card my-bookings">
                     <h3>Recent Bookings</h3>
@@ -65,12 +66,39 @@
             </div>
         </section>
 
+        <!-- ADMIN DASHBOARD PAGE -->
+        <section id="page-admin-dashboard" class="page">
+            <h2>Owner Dashboard</h2>
+            <div class="dashboard-grid">
+                <div class="card glass-card">
+                    <h3>List a New Car Wash</h3>
+                    <form id="add-wash-form" onsubmit="handleAddWash(event)">
+                        <input type="text" id="wash-name" placeholder="Car Wash Name" required>
+                        <input type="text" id="wash-location" placeholder="Location" required>
+                        <input type="number" id="wash-capacity" placeholder="Slot Capacity (e.g., 5)" required>
+                        <hr style="margin:1rem 0; border-color:var(--glass-border);">
+                        <h4>Service Offering</h4>
+                        <input type="text" id="service-name" placeholder="Service Name (e.g., Full Wash)" required>
+                        <input type="number" id="service-price" placeholder="Price ($)" required>
+                        <input type="number" id="service-duration" placeholder="Duration (minutes)" required>
+                        <p class="error-text" id="add-wash-error"></p>
+                        <p class="success-text" id="add-wash-success"></p>
+                        <button type="submit" class="btn-primary w-100">List Car Wash</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <!-- MODALS -->
         <div class="modal-overlay" id="auth-modal">
             <div class="modal glass-card">
                 <button class="close-btn" onclick="closeModals()">×</button>
                 <h2 id="auth-title">Log In</h2>
                 <form id="auth-form" onsubmit="handleAuth(event)">
+                    <select id="auth-role" style="display:none;">
+                        <option value="user">Customer</option>
+                        <option value="admin">Car Wash Owner</option>
+                    </select>
                     <input type="email" id="auth-email" placeholder="Email Address" required>
                     <input type="password" id="auth-password" placeholder="Password" required>
                     <p class="error-text" id="auth-error"></p>
