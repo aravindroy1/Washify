@@ -170,15 +170,15 @@ async def update_booking_status(booking_id: str, status_update: StatusUpdate, ba
     
     # Determine notification message
     msg = f"Update! Your car wash booking status is now: {status_update.status.upper()}. Est wait time: {new_wait_time}m."
-        if status_update.status == "completed":
-            msg += "\n\nWe hope your car is shining! ✨ Please leave us a review on the Washify App."
+    if status_update.status == "completed":
+        msg += "\n\nWe hope your car is shining! ✨ Please leave us a review on the Washify App."
             
-        # We need the user's email and phone_number. For simplicity, we assume we fetch it or it's stored in the booking.
-        # Since we don't have it on the booking object locally, we'll just send the notification without them,
-        # or we can send it with placeholder email/phone if we didn't cache them. In a full system, we would query Auth Service.
-        background_tasks.add_task(send_notification, updated_booking["user_id"], msg, "user@washify.com", "+123456789")
+    # We need the user's email and phone_number. For simplicity, we assume we fetch it or it's stored in the booking.
+    # Since we don't have it on the booking object locally, we'll just send the notification without them,
+    # or we can send it with placeholder email/phone if we didn't cache them. In a full system, we would query Auth Service.
+    background_tasks.add_task(send_notification, updated_booking["user_id"], msg, "user@washify.com", "+123456789")
         
-        return updated_booking
+    return updated_booking
 
 @app.get("/health")
 def health_check():
