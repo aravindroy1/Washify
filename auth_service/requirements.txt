@@ -3,7 +3,8 @@ uvicorn
 motor
 pydantic
 pydantic[email]
-passlib[bcrypt]
+bcrypt==3.2.2
+passlib
 pyjwt
 python-dotenv
 httpx
