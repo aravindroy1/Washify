@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import motor.motor_asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import smtplib
+from email.mime.text import MIMEText
 
 app = FastAPI(title="Washify Notification Service")
 
@@ -22,6 +24,31 @@ MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
 db = client.washify_notifications
 collection = db.get_collection("notifications")
+
+# Email Config
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+
+def send_real_email(to_email, subject, body):
+    if not SMTP_USER or not SMTP_PASS or SMTP_USER == "your_email@gmail.com":
+        print(f"[SIMULATED EMAIL] To: {to_email}\nSubject: {subject}\nBody: {body}")
+        return
+    try:
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = SMTP_USER
+        msg['To'] = to_email
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.send_message(msg)
+        server.quit()
+        print(f"[REAL EMAIL SENT SUCCESS] To: {to_email}")
+    except Exception as e:
+        print(f"[REAL EMAIL ERROR] Failed to send email: {e}")
 
 # Scheduler for smart background tasks
 scheduler = AsyncIOScheduler()
@@ -50,9 +77,13 @@ async def booking_confirmation(req: NotificationRequest):
     result = await collection.insert_one(notif_dict)
     notif_dict["id"] = str(result.inserted_id)
     
-    # Process simulated Email and SMS sending
-    print(f"\n[EMAIL SENT] To: {req.email}\nSubject: Washify Update\nBody: {req.message}")
-    print(f"[SMS SENT] To: {req.phone_number}\nText: {req.message}\n")
+    # Process Real/Simulated Email
+    if req.email:
+        send_real_email(req.email, "Washify Update 🚗✨", req.message)
+        
+    # Process SMS (Twilio requires account, so we simulate in console for now)
+    if req.phone_number:
+        print(f"\n[SMS DISPATCHED] To: {req.phone_number} | Msg: {req.message}\n")
     
     return notif_dict
 
