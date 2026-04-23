@@ -49,7 +49,13 @@ function showAuth(mode) {
     document.getElementById('auth-submit').innerText = mode === 'login' ? 'Log In' : 'Sign Up';
     document.querySelector('.toggle-auth').innerText = mode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in";
     document.getElementById('auth-error').innerText = '';
+    
+    // Toggle role and phone fields
     document.getElementById('auth-role').style.display = mode === 'login' ? 'none' : 'block';
+    const phoneInput = document.getElementById('auth-phone');
+    phoneInput.style.display = mode === 'login' ? 'none' : 'block';
+    if (mode === 'login') { phoneInput.removeAttribute('required'); } else { phoneInput.setAttribute('required', 'true'); }
+    
     document.getElementById('auth-modal').style.display = 'flex';
 }
 
@@ -87,17 +93,20 @@ async function handleAuth(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
+    const phone_number = document.getElementById('auth-phone').value || "0000000000";
     const role = currentAuthMode === 'register' ? document.getElementById('auth-role').value : 'user';
     const errorEl = document.getElementById('auth-error');
     errorEl.innerText = 'Loading...';
 
     const endpoint = currentAuthMode === 'login' ? '/login' : '/register';
     
+    const payload = currentAuthMode === 'login' ? { email, password } : { email, password, role, phone_number };
+    
     try {
         const res = await fetch(`${API.auth}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, role })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         

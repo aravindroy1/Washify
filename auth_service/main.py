@@ -35,6 +35,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Pydantic Models
 class UserCreate(BaseModel):
     email: EmailStr
+    phone_number: str
     password: str
     role: str = "user" # user or admin
 
@@ -71,13 +72,13 @@ async def register(user: UserCreate):
     result = await users_collection.insert_one(user_dict)
     
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role, "id": str(result.inserted_id)},
+        data={"sub": user.email, "role": user.role, "id": str(result.inserted_id), "phone_number": user.phone_number},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "user": {"id": str(result.inserted_id), "email": user.email, "role": user.role}
+        "user": {"id": str(result.inserted_id), "email": user.email, "role": user.role, "phone_number": user.phone_number}
     }
 
 @app.post("/login", response_model=Token)
@@ -87,13 +88,13 @@ async def login(user: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     access_token = create_access_token(
-        data={"sub": db_user["email"], "role": db_user["role"], "id": str(db_user["_id"])},
+        data={"sub": db_user["email"], "role": db_user["role"], "id": str(db_user["_id"]), "phone_number": db_user.get("phone_number", "")},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "user": {"id": str(db_user["_id"]), "email": db_user["email"], "role": db_user["role"]}
+        "user": {"id": str(db_user["_id"]), "email": db_user["email"], "role": db_user["role"], "phone_number": db_user.get("phone_number", "")}
     }
 
 @app.get("/health")

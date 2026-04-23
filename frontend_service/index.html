@@ -116,11 +116,12 @@
                 <button class="close-btn" onclick="closeModals()">×</button>
                 <h2 id="auth-title">Log In</h2>
                 <form id="auth-form" onsubmit="handleAuth(event)">
-                    <select id="auth-role" style="display:none;">
+                    <select id="auth-role" style="display:none; margin-bottom: 1rem; width:100%; padding: 0.8rem; border-radius: 8px;">
                         <option value="user">Customer</option>
                         <option value="admin">Car Wash Owner</option>
                     </select>
                     <input type="email" id="auth-email" placeholder="Email Address" required>
+                    <input type="tel" id="auth-phone" placeholder="Mobile Number (required for signup)" style="display:none;" required>
                     <input type="password" id="auth-password" placeholder="Password" required>
                     <p class="error-text" id="auth-error"></p>
                     <button type="submit" class="btn-primary w-100" id="auth-submit">Log In</button>

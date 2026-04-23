@@ -28,6 +28,8 @@ scheduler = AsyncIOScheduler()
 
 class NotificationRequest(BaseModel):
     user_id: str
+    email: str = None
+    phone_number: str = None
     message: str
 
 class NotificationResponse(BaseModel):
@@ -48,8 +50,10 @@ async def booking_confirmation(req: NotificationRequest):
     result = await collection.insert_one(notif_dict)
     notif_dict["id"] = str(result.inserted_id)
     
-    # In a real app, send FCM / Email / SMS here
-    print(f"[NOTIFICATION SENT] To {req.user_id}: {req.message}")
+    # Process simulated Email and SMS sending
+    print(f"\n[EMAIL SENT] To: {req.email}\nSubject: Washify Update\nBody: {req.message}")
+    print(f"[SMS SENT] To: {req.phone_number}\nText: {req.message}\n")
+    
     return notif_dict
 
 @app.get("/notifications/my", response_model=List[NotificationResponse])

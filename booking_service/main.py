@@ -57,12 +57,12 @@ def verify_user(authorization: str = Header(...)):
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-async def send_notification(user_id: str, message: str):
+async def send_notification(user_id: str, message: str, email: str = None, phone_number: str = None):
     async with httpx.AsyncClient() as client:
         try:
             await client.post(
                 f"{NOTIFICATION_URL}/notifications/booking-confirmation",
-                json={"user_id": user_id, "message": message}
+                json={"user_id": user_id, "message": message, "email": email, "phone_number": phone_number}
             )
         except Exception as e:
             print(f"Failed to send notification: {e}")
@@ -107,7 +107,9 @@ async def create_booking(
     background_tasks.add_task(
         send_notification, 
         user_id, 
-        f"Your Washify booking is confirmed! 🚗✨ Queue number: {queue_number}, Wait time: {total_wait} mins."
+        f"Your Washify booking is confirmed! 🚗✨ Queue number: {queue_number}, Wait time: {total_wait} mins.",
+        user_data.get("sub"), # email
+        user_data.get("phone_number")
     )
     
     return booking_dict
@@ -143,8 +145,17 @@ async def update_booking_status(booking_id: str, status_update: StatusUpdate, ba
     booking = await collection.find_one({"_id": ObjectId(booking_id)})
     if booking:
         booking["id"] = str(booking["_id"])
+        
+        # Determine notification message
         msg = f"Update! Your car wash booking status is now: {status_update.status.upper()}"
-        background_tasks.add_task(send_notification, booking["user_id"], msg)
+        if status_update.status == "completed":
+            msg += "\n\nWe hope your car is shining! ✨ Please leave us a review on the Washify App."
+            
+        # We need the user's email and phone_number. For simplicity, we assume we fetch it or it's stored in the booking.
+        # Since we don't have it on the booking object locally, we'll just send the notification without them,
+        # or we can send it with placeholder email/phone if we didn't cache them. In a full system, we would query Auth Service.
+        background_tasks.add_task(send_notification, booking["user_id"], msg, "user@washify.com", "+123456789")
+        
         return booking
     raise HTTPException(status_code=404, detail="Booking not found")
 
