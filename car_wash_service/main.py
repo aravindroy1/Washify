@@ -41,27 +41,35 @@ class CarWashBase(BaseModel):
 class CarWashCreate(CarWashBase):
     pass
 
-class CarWashResponse(CarWashBase):
+class CarWashResponse(BaseModel):
     id: str
+    owner_id: str
+    name: str
+    location: str
+    services: List[ServiceItem] = []
+    slot_capacity: int = 5
+    rating: float = 0.0
 
-def verify_admin(authorization: str = Header(...)):
+def verify_user(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
     token = authorization.split(" ")[1]
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        if payload.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin privileges required")
         return payload
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.post("/car_washes", response_model=CarWashResponse)
-async def create_car_wash(car_wash: CarWashCreate, admin_data: dict = Depends(verify_admin)):
-    car_wash_dict = car_wash.dict()
-    result = await collection.insert_one(car_wash_dict)
-    car_wash_dict["id"] = str(result.inserted_id)
-    return car_wash_dict
+async def create_car_wash(wash: CarWashCreate, user_data: dict = Depends(verify_user)):
+    if user_data.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can list a car wash")
+    
+    wash_dict = wash.dict()
+    wash_dict["owner_id"] = user_data["id"]
+    result = await collection.insert_one(wash_dict)
+    wash_dict["id"] = str(result.inserted_id)
+    return wash_dict
 
 @app.get("/car_washes", response_model=List[CarWashResponse])
 async def list_car_washes():

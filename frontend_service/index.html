@@ -129,6 +129,18 @@
                 <p class="toggle-auth" onclick="toggleAuthMode()">Don't have an account? Sign up</p>
             </div>
         </div>
+
+        <div class="modal-overlay" id="otp-modal" style="display:none; z-index:2000;">
+            <div class="modal glass-card">
+                <h2>Verify Account</h2>
+                <p style="margin-bottom:1rem; font-size:0.9rem; color:var(--text-muted);">We sent a 6-digit OTP to your phone/email.</p>
+                <form id="otp-form" onsubmit="verifyOTP(event)">
+                    <input type="text" id="otp-code" placeholder="Enter OTP (use 123456)" required>
+                    <p class="error-text" id="otp-error"></p>
+                    <button type="submit" class="btn-primary w-100">Verify</button>
+                </form>
+            </div>
+        </div>
         
         <div class="modal-overlay" id="booking-modal">
             <div class="modal glass-card">

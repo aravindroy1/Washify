@@ -31,6 +31,7 @@ NOTIFICATION_URL = os.getenv("NOTIFICATION_URL", "http://localhost:8005")
 # Models
 class BookingCreate(BaseModel):
     car_wash_id: str
+    car_wash_owner_id: str
     service_name: str
     duration_minutes: int
 
@@ -93,6 +94,7 @@ async def create_booking(
     booking_dict = {
         "user_id": user_id,
         "car_wash_id": booking.car_wash_id,
+        "car_wash_owner_id": booking.car_wash_owner_id,
         "service_name": booking.service_name,
         "duration_minutes": booking.duration_minutes,
         "status": "pending",
@@ -100,7 +102,6 @@ async def create_booking(
         "estimated_wait_time_minutes": total_wait,
         "created_at": datetime.utcnow().isoformat()
     }
-    
     result = await collection.insert_one(booking_dict)
     booking_dict["id"] = str(result.inserted_id)
     
@@ -128,7 +129,8 @@ async def get_my_bookings(user_data: dict = Depends(verify_user)):
 async def get_all_bookings(user_data: dict = Depends(verify_user)):
     if user_data.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    cursor = collection.find().sort("created_at", -1)
+    # Only return bookings that belong to this admin's car washes
+    cursor = collection.find({"car_wash_owner_id": user_data["id"]}).sort("created_at", -1)
     bookings = []
     async for document in cursor:
         document["id"] = str(document["_id"])
@@ -139,25 +141,44 @@ async def get_all_bookings(user_data: dict = Depends(verify_user)):
 async def update_booking_status(booking_id: str, status_update: StatusUpdate, background_tasks: BackgroundTasks, user_data: dict = Depends(verify_user)):
     if user_data.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    
-    await collection.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status_update.status}})
-    
-    booking = await collection.find_one({"_id": ObjectId(booking_id)})
-    if booking:
-        booking["id"] = str(booking["_id"])
         
-        # Determine notification message
-        msg = f"Update! Your car wash booking status is now: {status_update.status.upper()}"
+    booking = await collection.find_one({"_id": ObjectId(booking_id)})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    # Dynamic time reduction logic based on status
+    duration = booking.get("duration_minutes", 30)
+    new_wait_time = booking.get("estimated_wait_time_minutes", 0)
+    
+    if status_update.status == "started":
+        new_wait_time = int(duration * 0.75) # 25% time decreased
+    elif status_update.status == "washing":
+        new_wait_time = int(duration * 0.25) # 75% time decreased
+    elif status_update.status == "completed":
+        new_wait_time = 0
+    
+    await collection.update_one(
+        {"_id": ObjectId(booking_id)}, 
+        {"$set": {
+            "status": status_update.status, 
+            "estimated_wait_time_minutes": new_wait_time
+        }}
+    )
+    
+    updated_booking = await collection.find_one({"_id": ObjectId(booking_id)})
+    updated_booking["id"] = str(updated_booking["_id"])
+    
+    # Determine notification message
+    msg = f"Update! Your car wash booking status is now: {status_update.status.upper()}. Est wait time: {new_wait_time}m."
         if status_update.status == "completed":
             msg += "\n\nWe hope your car is shining! ✨ Please leave us a review on the Washify App."
             
         # We need the user's email and phone_number. For simplicity, we assume we fetch it or it's stored in the booking.
         # Since we don't have it on the booking object locally, we'll just send the notification without them,
         # or we can send it with placeholder email/phone if we didn't cache them. In a full system, we would query Auth Service.
-        background_tasks.add_task(send_notification, booking["user_id"], msg, "user@washify.com", "+123456789")
+        background_tasks.add_task(send_notification, updated_booking["user_id"], msg, "user@washify.com", "+123456789")
         
-        return booking
-    raise HTTPException(status_code=404, detail="Booking not found")
+        return updated_booking
 
 @app.get("/health")
 def health_check():

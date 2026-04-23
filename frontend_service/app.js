@@ -112,6 +112,48 @@ async function handleAuth(e) {
         
         if (!res.ok) throw new Error(data.detail || 'Authentication failed');
         
+        if (currentAuthMode === 'register') {
+            // Hide auth modal, show OTP modal
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('otp-modal').style.display = 'flex';
+            // Save email temporarily for OTP verification
+            document.getElementById('otp-modal').dataset.email = email;
+            return;
+        }
+        
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        currentUser = data.user;
+        
+        closeModals();
+        updateNavState();
+        
+        if (currentUser.role === 'admin') {
+            showPage('admin-dashboard');
+        } else {
+            showPage('home');
+        }
+    } catch (err) {
+        errorEl.innerText = err.message;
+    }
+}
+
+async function verifyOTP(e) {
+    e.preventDefault();
+    const otp = document.getElementById('otp-code').value;
+    const email = document.getElementById('otp-modal').dataset.email;
+    const errorEl = document.getElementById('otp-error');
+    errorEl.innerText = 'Verifying...';
+    
+    try {
+        const res = await fetch(`${API.auth}/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'OTP Verification failed');
+        
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         currentUser = data.user;
@@ -171,6 +213,8 @@ function openBooking(wash) {
     selectedWashId = wash.id;
     document.getElementById('book-wash-name').innerText = wash.name;
     const select = document.getElementById('book-service');
+    // Store owner_id in the dataset of the select element so handleBooking can read it
+    select.dataset.ownerId = wash.owner_id;
     select.innerHTML = wash.services.map(s => 
         `<option value='${JSON.stringify(s)}'>${s.name} - $${s.price} (${s.duration_minutes}m)</option>`
     ).join('');
@@ -198,6 +242,7 @@ async function handleBooking(e) {
             },
             body: JSON.stringify({
                 car_wash_id: selectedWashId,
+                car_wash_owner_id: document.getElementById('book-service').dataset.ownerId,
                 service_name: serviceData.name,
                 duration_minutes: serviceData.duration_minutes
             })
@@ -319,7 +364,8 @@ async function fetchAdminBookings() {
                         <select onchange="updateBookingStatus('${b.id}', this.value)" style="margin-bottom:0; width:120px; padding:0.4rem; background:rgba(0,0,0,0.5); color:white;">
                             <option value="">Update...</option>
                             <option value="pending">Pending</option>
-                            <option value="started">Started</option>
+                            <option value="started">Started (75% wait)</option>
+                            <option value="washing">Washing (25% wait)</option>
                             <option value="completed">Completed</option>
                         </select>
                     </div>

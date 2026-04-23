@@ -48,6 +48,10 @@ class Token(BaseModel):
     token_type: str
     user: dict
 
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp: str
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -61,7 +65,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
-@app.post("/register", response_model=Token)
+@app.post("/register")
 async def register(user: UserCreate):
     existing_user = await users_collection.find_one({"email": user.email})
     if existing_user:
@@ -69,16 +73,30 @@ async def register(user: UserCreate):
     
     user_dict = user.dict()
     user_dict["password"] = get_password_hash(user_dict["password"])
+    user_dict["is_verified"] = False
     result = await users_collection.insert_one(user_dict)
     
+    return {"message": "User registered. Please verify OTP."}
+
+@app.post("/verify-otp", response_model=Token)
+async def verify_otp(data: OTPVerify):
+    if data.otp != "123456":
+        raise HTTPException(status_code=400, detail="Invalid OTP code.")
+    
+    db_user = await users_collection.find_one({"email": data.email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await users_collection.update_one({"email": data.email}, {"$set": {"is_verified": True}})
+    
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role, "id": str(result.inserted_id), "phone_number": user.phone_number},
+        data={"sub": db_user["email"], "role": db_user["role"], "id": str(db_user["_id"]), "phone_number": db_user.get("phone_number", "")},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "user": {"id": str(result.inserted_id), "email": user.email, "role": user.role, "phone_number": user.phone_number}
+        "user": {"id": str(db_user["_id"]), "email": db_user["email"], "role": db_user["role"], "phone_number": db_user.get("phone_number", "")}
     }
 
 @app.post("/login", response_model=Token)
@@ -86,6 +104,9 @@ async def login(user: UserLogin):
     db_user = await users_collection.find_one({"email": user.email})
     if not db_user or not verify_password(user.password, db_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    if not db_user.get("is_verified", False):
+        raise HTTPException(status_code=403, detail="Account not verified. Please verify OTP.")
     
     access_token = create_access_token(
         data={"sub": db_user["email"], "role": db_user["role"], "id": str(db_user["_id"]), "phone_number": db_user.get("phone_number", "")},
