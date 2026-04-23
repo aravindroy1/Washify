@@ -9,6 +9,7 @@ import motor.motor_asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import smtplib
 from email.mime.text import MIMEText
+from twilio.rest import Client
 
 app = FastAPI(title="Washify Notification Service")
 
@@ -50,6 +51,26 @@ def send_real_email(to_email, subject, body):
     except Exception as e:
         print(f"[REAL EMAIL ERROR] Failed to send email: {e}")
 
+# Twilio SMS Config
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+
+def send_real_sms(to_phone, body):
+    if not TWILIO_ACCOUNT_SID or TWILIO_ACCOUNT_SID == "your_twilio_sid":
+        print(f"[SIMULATED SMS] To: {to_phone}\nMsg: {body}")
+        return
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        message = client.messages.create(
+            body=body,
+            from_=TWILIO_PHONE_NUMBER,
+            to=to_phone
+        )
+        print(f"[REAL SMS SENT SUCCESS] SID: {message.sid}")
+    except Exception as e:
+        print(f"[REAL SMS ERROR] Failed to send SMS: {e}")
+
 # Scheduler for smart background tasks
 scheduler = AsyncIOScheduler()
 
@@ -81,9 +102,9 @@ async def booking_confirmation(req: NotificationRequest):
     if req.email:
         send_real_email(req.email, "Washify Update 🚗✨", req.message)
         
-    # Process SMS (Twilio requires account, so we simulate in console for now)
+    # Process Real/Simulated SMS
     if req.phone_number:
-        print(f"\n[SMS DISPATCHED] To: {req.phone_number} | Msg: {req.message}\n")
+        send_real_sms(req.phone_number, req.message)
     
     return notif_dict
 
