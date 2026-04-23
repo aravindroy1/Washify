@@ -3,12 +3,21 @@ import httpx
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, status, Depends, Header, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import motor.motor_asyncio
 import jwt
 from bson import ObjectId
 
 app = FastAPI(title="Washify Booking Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
