@@ -1,47 +1,4 @@
 ---
-# MongoDB
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mongodb-deployment
-  labels:
-    app: mongodb
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mongodb
-  template:
-    metadata:
-      labels:
-        app: mongodb
-    spec:
-      containers:
-        - name: mongodb
-          image: mongo:latest
-          ports:
-            - containerPort: 27017
-          volumeMounts:
-            - name: mongo-storage
-              mountPath: /data/db
-      volumes:
-        - name: mongo-storage
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongodb
-spec:
-  selector:
-    app: mongodb
-  ports:
-    - protocol: TCP
-      port: 27017
-      targetPort: 27017
-  type: ClusterIP
-
----
 # Auth Service
 apiVersion: apps/v1
 kind: Deployment
@@ -61,7 +18,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: aravindroy1/washify-auth:latest # Replace with your dockerhub image
+          image: aravindroy1/washify-auth:latest
           ports:
             - containerPort: 8000
           env:
@@ -69,20 +26,32 @@ spec:
               value: "mongodb://mongodb:27017"
             - name: JWT_SECRET
               value: "super_secret_key_change_me_in_production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: auth-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: auth-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30001
 
 ---
 # Car Wash Service
@@ -112,20 +81,32 @@ spec:
               value: "mongodb://mongodb:27017"
             - name: JWT_SECRET
               value: "super_secret_key_change_me_in_production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: car-wash-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: car-wash-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30002
 
 ---
 # Booking Service
@@ -157,20 +138,32 @@ spec:
               value: "super_secret_key_change_me_in_production"
             - name: NOTIFICATION_URL
               value: "http://notification-service:8000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: booking-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: booking-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30003
 
 ---
 # Review Service
@@ -200,20 +193,32 @@ spec:
               value: "mongodb://mongodb:27017"
             - name: JWT_SECRET
               value: "super_secret_key_change_me_in_production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: review-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: review-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30004
 
 ---
 # Notification Service
@@ -243,17 +248,29 @@ spec:
               value: "mongodb://mongodb:27017"
             - name: JWT_SECRET
               value: "super_secret_key_change_me_in_production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: notification-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30005

@@ -1,0 +1,106 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: washify-gateway
+  namespace: default
+spec:
+  gatewayClassName: haproxy
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: washify-routes
+  namespace: default
+spec:
+  parentRefs:
+  - name: washify-gateway
+  rules:
+  # Auth Service Route
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/auth
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: auth-service
+      port: 8000
+      
+  # Car Wash Service Route
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/car-wash
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: car-wash-service
+      port: 8000
+      
+  # Booking Service Route
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/booking
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: booking-service
+      port: 8000
+      
+  # Review Service Route
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/review
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: review-service
+      port: 8000
+      
+  # Notification Service Route
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/notification
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: notification-service
+      port: 8000
+      
+  # Frontend Route (Catch-all)
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend-service
+      port: 80
