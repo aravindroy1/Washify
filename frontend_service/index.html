@@ -23,7 +23,8 @@
             <button class="btn-primary" onclick="showAuth('register')">Sign Up</button>
         </div>
         <div class="user-profile" id="user-section" style="display:none;">
-            <span id="user-email"></span>
+            <span id="nav-notifications" onclick="showPage('notifications')" style="cursor:pointer; margin-right:1.5rem; font-size:1.2rem;" title="Notifications">🔔</span>
+            <span id="user-email" style="margin-right:1rem;"></span>
             <button class="btn-outline" onclick="logout()">Log Out</button>
         </div>
     </header>
@@ -85,6 +86,26 @@
                         <p class="success-text" id="add-wash-success"></p>
                         <button type="submit" class="btn-primary w-100">List Car Wash</button>
                     </form>
+                </div>
+                
+                <div class="card my-bookings" style="grid-column: 1 / -1;">
+                    <h3>Manage Customer Bookings</h3>
+                    <ul id="admin-bookings-list">
+                        <div class="loader">Loading bookings...</div>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- NOTIFICATIONS PAGE -->
+        <section id="page-notifications" class="page">
+            <h2>Notifications 🔔</h2>
+            <div class="dashboard-grid">
+                <div class="card my-bookings">
+                    <ul id="notifications-list">
+                        <!-- Populated via JS -->
+                        <div class="loader">Loading...</div>
+                    </ul>
                 </div>
             </div>
         </section>

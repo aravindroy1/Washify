@@ -34,6 +34,9 @@ class BookingCreate(BaseModel):
     service_name: str
     duration_minutes: int
 
+class StatusUpdate(BaseModel):
+    status: str
+
 class BookingResponse(BaseModel):
     id: str
     user_id: str
@@ -118,6 +121,32 @@ async def get_my_bookings(user_data: dict = Depends(verify_user)):
         document["id"] = str(document["_id"])
         bookings.append(document)
     return bookings
+
+@app.get("/bookings/admin/all", response_model=List[BookingResponse])
+async def get_all_bookings(user_data: dict = Depends(verify_user)):
+    if user_data.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    cursor = collection.find().sort("created_at", -1)
+    bookings = []
+    async for document in cursor:
+        document["id"] = str(document["_id"])
+        bookings.append(document)
+    return bookings
+
+@app.put("/bookings/{booking_id}/status", response_model=BookingResponse)
+async def update_booking_status(booking_id: str, status_update: StatusUpdate, background_tasks: BackgroundTasks, user_data: dict = Depends(verify_user)):
+    if user_data.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    await collection.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status_update.status}})
+    
+    booking = await collection.find_one({"_id": ObjectId(booking_id)})
+    if booking:
+        booking["id"] = str(booking["_id"])
+        msg = f"Update! Your car wash booking status is now: {status_update.status.upper()}"
+        background_tasks.add_task(send_notification, booking["user_id"], msg)
+        return booking
+    raise HTTPException(status_code=404, detail="Booking not found")
 
 @app.get("/health")
 def health_check():

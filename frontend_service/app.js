@@ -2,7 +2,8 @@ const HOST = window.location.hostname;
 const API = {
     auth: `http://${HOST}:30001`,
     wash: `http://${HOST}:30002`,
-    booking: `http://${HOST}:30003`
+    booking: `http://${HOST}:30003`,
+    notification: `http://${HOST}:30005`
 };
 
 let currentUser = null;
@@ -28,6 +29,16 @@ function showPage(pageId) {
     if (pageId === 'dashboard') {
         if (!currentUser) return showAuth('login');
         fetchMyBookings();
+    }
+    
+    if (pageId === 'admin-dashboard') {
+        if (!currentUser || currentUser.role !== 'admin') return showPage('home');
+        fetchAdminBookings();
+    }
+    
+    if (pageId === 'notifications') {
+        if (!currentUser) return showAuth('login');
+        fetchMyNotifications();
     }
 }
 
@@ -135,7 +146,9 @@ async function fetchCarWashes() {
                 <div style="margin-top: 1rem;">
                     ${w.services.map(s => `<div style="font-size: 0.9rem; margin-bottom: 0.2rem;">- ${s.name} <span class="price">$${s.price}</span> (${s.duration_minutes}m)</div>`).join('')}
                 </div>
-                <button class="btn-primary w-100" style="margin-top: 1rem;" onclick='openBooking(${JSON.stringify(w)})'>Book Now</button>
+                ${(!currentUser || currentUser.role !== 'admin') ? 
+                  `<button class="btn-primary w-100" style="margin-top: 1rem;" onclick='openBooking(${JSON.stringify(w)})'>Book Now</button>` 
+                  : '<p style="color:var(--text-muted); margin-top:1rem; font-size:0.9rem;">Admins cannot book services.</p>'}
             </div>
         `).join('');
     } catch (err) {
@@ -266,5 +279,89 @@ async function handleAddWash(e) {
     } catch (err) {
         successEl.innerText = '';
         errorEl.innerText = err.message;
+    }
+}
+
+async function fetchAdminBookings() {
+    const list = document.getElementById('admin-bookings-list');
+    list.innerHTML = '<div class="loader">Loading customer bookings...</div>';
+    
+    try {
+        const res = await fetch(`${API.booking}/bookings/admin/all`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const bookings = await res.json();
+        
+        if (bookings.length === 0) {
+            list.innerHTML = '<p>No customer bookings found.</p>';
+            return;
+        }
+
+        list.innerHTML = bookings.map(b => `
+            <li>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div style="flex:1;">
+                        <strong>${b.service_name}</strong>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Queue: #${b.queue_number} | Wait: ${b.estimated_wait_time_minutes}m</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">User ID: ${b.user_id.substring(0,8)}...</div>
+                    </div>
+                    <div style="display:flex; gap: 0.5rem; align-items:center;">
+                        <span class="status-badge status-${b.status}">${b.status.toUpperCase()}</span>
+                        <select onchange="updateBookingStatus('${b.id}', this.value)" style="margin-bottom:0; width:120px; padding:0.4rem; background:rgba(0,0,0,0.5); color:white;">
+                            <option value="">Update...</option>
+                            <option value="pending">Pending</option>
+                            <option value="started">Started</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </li>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = '<p class="error-text">Failed to load bookings.</p>';
+    }
+}
+
+async function updateBookingStatus(bookingId, status) {
+    if (!status) return;
+    try {
+        await fetch(`${API.booking}/bookings/${bookingId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ status })
+        });
+        fetchAdminBookings(); // Refresh list
+    } catch (err) {
+        alert("Failed to update status: " + err.message);
+    }
+}
+
+async function fetchMyNotifications() {
+    const list = document.getElementById('notifications-list');
+    list.innerHTML = '<div class="loader">Loading notifications...</div>';
+    
+    try {
+        const res = await fetch(`${API.notification}/notifications/my?user_id=${currentUser.id}`);
+        const notifs = await res.json();
+        
+        if (notifs.length === 0) {
+            list.innerHTML = '<p>You have no notifications yet.</p>';
+            return;
+        }
+
+        list.innerHTML = notifs.map(n => `
+            <li>
+                <div style="display: flex; flex-direction: column;">
+                    <strong style="color:var(--accent);">${n.type.toUpperCase()}</strong>
+                    <div style="margin-top:0.3rem;">${n.message}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top:0.3rem;">${new Date(n.created_at).toLocaleString()}</div>
+                </div>
+            </li>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = '<p class="error-text">Failed to load notifications.</p>';
     }
 }

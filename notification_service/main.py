@@ -52,6 +52,15 @@ async def booking_confirmation(req: NotificationRequest):
     print(f"[NOTIFICATION SENT] To {req.user_id}: {req.message}")
     return notif_dict
 
+@app.get("/notifications/my", response_model=List[NotificationResponse])
+async def get_my_notifications(user_id: str):
+    cursor = collection.find({"user_id": user_id}).sort("created_at", -1)
+    notifs = []
+    async for document in cursor:
+        document["id"] = str(document["_id"])
+        notifs.append(document)
+    return notifs
+
 @app.post("/notifications/weather-trigger")
 async def trigger_weather_notifications(background_tasks: BackgroundTasks):
     """
