@@ -5,7 +5,7 @@ metadata:
   name: washify-gateway
   namespace: default
 spec:
-  gatewayClassName: haproxy
+  gatewayClassName: eg
   listeners:
   - name: http
     protocol: HTTP
