@@ -1,9 +1,9 @@
-const HOST = window.location.hostname;
+const HOST = window.location.host;
 const API = {
-    auth: `http://${HOST}:30001`,
-    wash: `http://${HOST}:30002`,
-    booking: `http://${HOST}:30003`,
-    notification: `http://${HOST}:30005`
+    auth: `http://${HOST}/api/auth`,
+    wash: `http://${HOST}/api/car-wash`,
+    booking: `http://${HOST}/api/booking`,
+    notification: `http://${HOST}/api/notification`
 };
 
 let currentUser = null;
