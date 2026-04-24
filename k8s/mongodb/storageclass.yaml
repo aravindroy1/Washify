@@ -1,7 +1,15 @@
----
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: washify-mongo-sc
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
+provisioner: nfs.csi.k8s.io
+
+parameters:
+  server: 10.0.1.98        # 🔁 your NFS server private IP
+  share: /nfs-data         # 🔁 your exported NFS path
+
+reclaimPolicy: Retain      # ✅ keeps data even if PVC is deleted
+volumeBindingMode: Immediate
+
+mountOptions:
+  - nfsvers=4.1            # optional but recommended
