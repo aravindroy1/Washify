@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: washify-mongodb
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: washify
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/aravindroy1/Washify.git
+    targetRevision: main
+    path: helm/mongodb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
