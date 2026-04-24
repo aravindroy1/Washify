@@ -1,27 +1,4 @@
 ---
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: washify-mongo-sc
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongodb
-  labels:
-    app: mongodb
-spec:
-  ports:
-    - port: 27017
-      targetPort: 27017
-  clusterIP: None
-  selector:
-    app: mongodb
-
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
