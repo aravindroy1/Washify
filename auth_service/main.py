@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 import jwt
 import motor.motor_asyncio
 from bson import ObjectId 
-
+ 
 app = FastAPI(title="Washify Auth Service")
 
 app.add_middleware(
