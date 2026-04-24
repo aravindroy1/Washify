@@ -1,0 +1,8 @@
+# Auto-updated by dev team after ci-dev pipeline runs
+# Image pushed by: ci-dev.yml (commit sha tag)
+replicaCount: 1
+image:
+  repository: ghcr.io/washifyapp/car-wash-service
+  tag: sha-latest   # <-- update this after dev pipeline runs
+  pullPolicy: Always
+namespace: washify-dev-ns

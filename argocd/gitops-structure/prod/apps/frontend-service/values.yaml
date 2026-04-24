@@ -1,0 +1,8 @@
+# Updated manually by team lead after promoting image to prod
+# Image promoted by: ci-prod.yml (semantic version tag)
+replicaCount: 2
+image:
+  repository: ghcr.io/washifyapp/frontend-service
+  tag: v1.0.0       # <-- update this after prod pipeline runs
+  pullPolicy: Always
+namespace: washify-prod-ns
