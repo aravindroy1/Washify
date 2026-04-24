@@ -4,11 +4,10 @@ kind: Service
 metadata:
   name: review-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: review-service
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 30004
