@@ -2,6 +2,7 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
+  namespace: washify-dev-ns
   name: washify-routes
   namespace: default
 spec:
@@ -85,3 +86,4 @@ spec:
     backendRefs:
     - name: frontend-service
       port: 80
+

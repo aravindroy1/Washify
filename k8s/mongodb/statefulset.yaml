@@ -2,6 +2,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  namespace: washify-dev-ns
   name: mongodb
   labels:
     app: mongodb
@@ -52,3 +53,4 @@ spec:
         resources:
           requests:
             storage: 2Gi
+

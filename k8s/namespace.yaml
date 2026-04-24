@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: washify-dev-ns
+  labels:
+    environment: development
+    project: washify

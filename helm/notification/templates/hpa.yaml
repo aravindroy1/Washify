@@ -2,6 +2,7 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
+  namespace: washify-dev-ns
   name: notification-hpa
 spec:
   scaleTargetRef:
@@ -18,3 +19,4 @@ spec:
         type: Utilization
         averageUtilization: {{ .Values.hpa.cpuUtilization }}
 {{- end }}
+

@@ -2,6 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: washify-dev-ns
   name: review-deployment
   labels:
     app: review-service
@@ -38,3 +39,4 @@ spec:
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 15
+

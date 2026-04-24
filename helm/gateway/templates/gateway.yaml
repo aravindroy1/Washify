@@ -2,7 +2,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ .Values.gateway.name }}
-  namespace: default
+  namespace: washify-dev-ns
 spec:
   gatewayClassName: {{ .Values.gateway.className }}
   listeners:

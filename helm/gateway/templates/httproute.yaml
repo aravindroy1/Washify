@@ -2,7 +2,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: {{ .Values.httproute.name }}
-  namespace: default
+  namespace: washify-dev-ns
 spec:
   parentRefs:
   - name: {{ .Values.gateway.name }}
