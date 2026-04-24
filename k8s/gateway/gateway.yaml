@@ -21,7 +21,6 @@ spec:
   parentRefs:
   - name: washify-gateway
   rules:
-  # Auth Service Route
   - matches:
     - path:
         type: PathPrefix
@@ -36,7 +35,6 @@ spec:
     - name: auth-service
       port: 8000
       
-  # Car Wash Service Route
   - matches:
     - path:
         type: PathPrefix
@@ -51,7 +49,6 @@ spec:
     - name: car-wash-service
       port: 8000
       
-  # Booking Service Route
   - matches:
     - path:
         type: PathPrefix
@@ -66,7 +63,6 @@ spec:
     - name: booking-service
       port: 8000
       
-  # Review Service Route
   - matches:
     - path:
         type: PathPrefix
@@ -81,7 +77,6 @@ spec:
     - name: review-service
       port: 8000
       
-  # Notification Service Route
   - matches:
     - path:
         type: PathPrefix
@@ -96,7 +91,6 @@ spec:
     - name: notification-service
       port: 8000
       
-  # Frontend Route (Catch-all)
   - matches:
     - path:
         type: PathPrefix

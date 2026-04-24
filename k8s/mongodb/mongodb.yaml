@@ -1,14 +1,12 @@
 ---
-# Storage Class for MongoDB (Assuming standard default provisioner if none specified)
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: washify-mongo-sc
-provisioner: kubernetes.io/no-provisioner # Replace with your cloud provider's provisioner (e.g., ebs.csi.aws.com, pd.csi.storage.gke.io) if needed, or local-path for minikube
+provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: WaitForFirstConsumer
 
 ---
-# Headless Service for MongoDB StatefulSet
 apiVersion: v1
 kind: Service
 metadata:
@@ -19,12 +17,11 @@ spec:
   ports:
     - port: 27017
       targetPort: 27017
-  clusterIP: None # Headless service
+  clusterIP: None
   selector:
     app: mongodb
 
 ---
-# MongoDB StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -74,7 +71,6 @@ spec:
         name: mongo-storage
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        # storageClassName: washify-mongo-sc # Uncomment and use if you have a specific storage class, otherwise it uses the cluster default
         resources:
           requests:
             storage: 2Gi
