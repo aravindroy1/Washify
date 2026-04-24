@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────
+# REUSABLE WORKFLOW: Stage 2 — Snyk Dependency Vulnerability Scan
+# Repo: WashifyApp/washify-workflows
+# Called by: each microservice's ci-dev.yml / ci-prod.yml
+# ─────────────────────────────────────────────────────────────
+name: Reusable — Snyk Vulnerability Scan
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment label (dev or prod)"
+        required: true
+        type: string
+    secrets:
+      SNYK_TOKEN:
+        required: true
+      MAIL_USERNAME:
+        required: true
+      MAIL_PASSWORD:
+        required: true
+      MAIL_RECIPIENT:
+        required: true
+
+jobs:
+  snyk:
+    name: "[${{ inputs.environment }}] Snyk Dependency Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk Scan
+        id: snyk
+        uses: snyk/actions/python@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --fail-on=all
+
+      - name: Email — Snyk PASSED
+        if: steps.snyk.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "✅ [${{ inputs.environment }}][PASS] Snyk Scan — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ✅ Snyk Dependency Scan PASSED
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+
+            No HIGH or CRITICAL vulnerabilities found in dependencies.
+            Pipeline is moving to Stage 3 (Docker Build + Trivy + GHCR Push).
+
+            — Washify CI/CD
+
+      - name: Email — Snyk FAILED
+        if: steps.snyk.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "❌ [${{ inputs.environment }}][FAIL] Snyk Scan — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ❌ Snyk Dependency Scan FAILED — Pipeline Stopped
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+
+            Action Required: HIGH/CRITICAL vulnerabilities found in dependencies.
+            Run 'snyk test' locally and fix the issues before pushing again.
+
+            — Washify CI/CD
+
+      - name: Fail Pipeline if Vulnerabilities Found
+        if: steps.snyk.outcome == 'failure'
+        run: exit 1

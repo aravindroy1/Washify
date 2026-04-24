@@ -1,0 +1,141 @@
+# ─────────────────────────────────────────────────────────────
+# REUSABLE WORKFLOW: Stage 3 — Docker Build + Trivy Scan + Push to GHCR
+# Repo: WashifyApp/washify-workflows
+# Called by: each microservice's ci-dev.yml / ci-prod.yml
+# ─────────────────────────────────────────────────────────────
+name: Reusable — Build, Scan & Push to GHCR
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment label (dev or prod)"
+        required: true
+        type: string
+      image_tag:
+        description: "Image tag to use (sha-abc1234 for dev, v1.1.1 for prod)"
+        required: true
+        type: string
+    secrets:
+      MAIL_USERNAME:
+        required: true
+      MAIL_PASSWORD:
+        required: true
+      MAIL_RECIPIENT:
+        required: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-scan-push:
+    name: "[${{ inputs.environment }}] Build → Trivy → Push GHCR"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Full Image Name
+        id: image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ inputs.image_tag }}"
+          echo "full_image=${IMAGE}" >> $GITHUB_OUTPUT
+          echo "Building image: ${IMAGE}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build but do NOT push yet — Trivy scans first
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.image.outputs.full_image }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Load Image for Trivy
+        run: docker load --input /tmp/image.tar
+
+      # ── Trivy Scan ──────────────────────────────────────
+      - name: Run Trivy Container Scan
+        id: trivy
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: ${{ steps.image.outputs.full_image }}
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Email — Trivy PASSED
+        if: steps.trivy.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "✅ [${{ inputs.environment }}][PASS] Trivy + GHCR Push — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ✅ Trivy Container Scan PASSED & Image Pushed to GHCR
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Image      : ${{ steps.image.outputs.full_image }}
+
+            All 3 pipeline stages completed successfully! 🎉
+            The image is now available in GHCR and ready for deployment.
+
+            — Washify CI/CD
+
+      - name: Email — Trivy FAILED
+        if: steps.trivy.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "❌ [${{ inputs.environment }}][FAIL] Trivy Scan — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ❌ Trivy Container Scan FAILED — Image NOT pushed to GHCR
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Image      : ${{ steps.image.outputs.full_image }}
+
+            Action Required: HIGH/CRITICAL vulnerabilities found in the container image.
+            Fix the base image or dependency versions and push again.
+
+            — Washify CI/CD
+
+      - name: Fail Pipeline if Trivy Found Vulnerabilities
+        if: steps.trivy.outcome == 'failure'
+        run: exit 1
+
+      # ── Push to GHCR only if Trivy passed ───────────────
+      - name: Push Image to GHCR
+        run: docker push ${{ steps.image.outputs.full_image }}

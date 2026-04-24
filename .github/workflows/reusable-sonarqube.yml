@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────
+# REUSABLE WORKFLOW: Stage 1 — SonarQube Code Quality Gate
+# Repo: WashifyApp/washify-workflows
+# Called by: each microservice's ci-dev.yml / ci-prod.yml
+# ─────────────────────────────────────────────────────────────
+name: Reusable — SonarQube Quality Gate
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment label (dev or prod)"
+        required: true
+        type: string
+    secrets:
+      SONAR_TOKEN:
+        required: true
+      SONAR_HOST_URL:
+        required: true
+      MAIL_USERNAME:
+        required: true
+      MAIL_PASSWORD:
+        required: true
+      MAIL_RECIPIENT:
+        required: true
+
+jobs:
+  sonarqube:
+    name: "[${{ inputs.environment }}] SonarQube Quality Gate"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Check Quality Gate Status
+        id: quality_gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Email — Quality Gate PASSED
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "✅ [${{ inputs.environment }}][PASS] SonarQube — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ✅ SonarQube Quality Gate PASSED
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+
+            The pipeline is moving to Stage 2 (Snyk Scan).
+
+            — Washify CI/CD
+
+      - name: Email — Quality Gate FAILED
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_RECIPIENT }}
+          from: "Washify CI <${{ secrets.MAIL_USERNAME }}>"
+          subject: "❌ [${{ inputs.environment }}][FAIL] SonarQube — ${{ github.repository }}"
+          body: |
+            Hello Dev Team,
+
+            ❌ SonarQube Quality Gate FAILED — Pipeline Stopped
+
+            Service    : ${{ github.repository }}
+            Environment: ${{ inputs.environment }}
+            Branch/Tag : ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+
+            Action Required: Fix all code quality issues before pushing again.
+            SonarQube Dashboard: ${{ secrets.SONAR_HOST_URL }}
+
+            — Washify CI/CD
