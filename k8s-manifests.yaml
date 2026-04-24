@@ -21,11 +21,11 @@ spec:
           image: aravindroy1/washify-auth:latest
           ports:
             - containerPort: 8000
-          env:
-            - name: MONGO_URL
-              value: "mongodb://mongodb:27017"
-            - name: JWT_SECRET
-              value: "super_secret_key_change_me_in_production"
+          envFrom:
+            - configMapRef:
+                name: washify-config
+            - secretRef:
+                name: washify-secret
           resources:
             requests:
               cpu: "100m"
@@ -76,11 +76,11 @@ spec:
           image: aravindroy1/washify-car-wash:latest
           ports:
             - containerPort: 8000
-          env:
-            - name: MONGO_URL
-              value: "mongodb://mongodb:27017"
-            - name: JWT_SECRET
-              value: "super_secret_key_change_me_in_production"
+          envFrom:
+            - configMapRef:
+                name: washify-config
+            - secretRef:
+                name: washify-secret
           resources:
             requests:
               cpu: "100m"
@@ -131,13 +131,11 @@ spec:
           image: aravindroy1/washify-booking:latest
           ports:
             - containerPort: 8000
-          env:
-            - name: MONGO_URL
-              value: "mongodb://mongodb:27017"
-            - name: JWT_SECRET
-              value: "super_secret_key_change_me_in_production"
-            - name: NOTIFICATION_URL
-              value: "http://notification-service:8000"
+          envFrom:
+            - configMapRef:
+                name: washify-config
+            - secretRef:
+                name: washify-secret
           resources:
             requests:
               cpu: "100m"
@@ -188,11 +186,11 @@ spec:
           image: aravindroy1/washify-review:latest
           ports:
             - containerPort: 8000
-          env:
-            - name: MONGO_URL
-              value: "mongodb://mongodb:27017"
-            - name: JWT_SECRET
-              value: "super_secret_key_change_me_in_production"
+          envFrom:
+            - configMapRef:
+                name: washify-config
+            - secretRef:
+                name: washify-secret
           resources:
             requests:
               cpu: "100m"
@@ -243,11 +241,11 @@ spec:
           image: aravindroy1/washify-notification:latest
           ports:
             - containerPort: 8000
-          env:
-            - name: MONGO_URL
-              value: "mongodb://mongodb:27017"
-            - name: JWT_SECRET
-              value: "super_secret_key_change_me_in_production"
+          envFrom:
+            - configMapRef:
+                name: washify-config
+            - secretRef:
+                name: washify-secret
           resources:
             requests:
               cpu: "100m"

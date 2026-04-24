@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: washify-config
+data:
+  MONGO_URL: "mongodb://mongodb:27017"
+  NOTIFICATION_URL: "http://notification-service:8000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: washify-secret
+type: Opaque
+stringData:
+  JWT_SECRET: "super_secret_key_change_me_in_production"
