@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: aravindroy1/washify-frontend
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  cpuUtilization: 80
+
+livenessProbe:
+  path: /
+  port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10

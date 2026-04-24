@@ -1,0 +1,6 @@
+apiVersion: v2
+name: review
+description: Helm chart for Washify Review Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

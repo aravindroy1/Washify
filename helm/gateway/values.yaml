@@ -1,0 +1,8 @@
+gateway:
+  name: washify-gateway
+  className: kgateway
+  port: 80
+  protocol: HTTP
+
+httproute:
+  name: washify-routes

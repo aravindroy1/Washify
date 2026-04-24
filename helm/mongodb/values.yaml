@@ -1,0 +1,21 @@
+replicaCount: 2
+
+image:
+  repository: mongo
+  tag: latest
+  pullPolicy: Always
+
+service:
+  port: 27017
+
+storage:
+  className: washify-mongo-sc
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"

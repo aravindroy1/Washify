@@ -1,0 +1,6 @@
+apiVersion: v2
+name: car-wash
+description: Helm chart for Washify Car Wash Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
