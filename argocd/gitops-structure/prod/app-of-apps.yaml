@@ -1,0 +1,24 @@
+# ArgoCD App-of-Apps — PROD Cluster Root
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: washify-prod-app-of-apps
+  namespace: argocd
+  labels:
+    environment: prod
+    project: washify
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/WashifyApp/washify-gitops.git
+    targetRevision: main
+    path: prod/apps
+  destination:
+    server: https://<PROD-CLUSTER-API-SERVER>   # <-- your PROD cluster API server
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

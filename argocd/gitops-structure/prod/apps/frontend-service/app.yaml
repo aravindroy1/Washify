@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prod-frontend-service
+  namespace: argocd
+  labels:
+    environment: prod
+    project: washify
+    service: frontend-service
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/WashifyApp/washify-gitops.git
+    targetRevision: main
+    path: prod/apps/frontend-service
+  destination:
+    server: https://<PROD-CLUSTER-API-SERVER>
+    namespace: washify-prod-ns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

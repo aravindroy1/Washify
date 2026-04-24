@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-car-wash-service
+  namespace: argocd
+  labels:
+    environment: dev
+    project: washify
+    service: car-wash-service
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/WashifyApp/washify-gitops.git
+    targetRevision: main
+    path: dev/apps/car-wash-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: washify-dev-ns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

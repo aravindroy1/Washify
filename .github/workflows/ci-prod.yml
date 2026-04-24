@@ -1,0 +1,331 @@
+name: CI — Production Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'      # Triggers only on semantic version tags like v1.0.0, v2.1.3
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+  DEV_TEAM_EMAIL: ${{ secrets.MAIL_RECIPIENT }}
+
+jobs:
+  # ─────────────────────────────────────────────
+  # STAGE 1: SonarQube Code Quality Scan
+  # ─────────────────────────────────────────────
+  sonarqube:
+    name: SonarQube Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Check SonarQube Quality Gate
+        id: quality_gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Send Email — SonarQube SUCCESS
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "✅ [PROD][PASS] SonarQube Quality Gate — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ✅ SonarQube Quality Gate PASSED for PRODUCTION release:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+
+            — Washify CI/CD
+
+      - name: Send Email — SonarQube FAILURE
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "❌ [PROD][FAIL] SonarQube Quality Gate — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ❌ PRODUCTION RELEASE BLOCKED — SonarQube Quality Gate FAILED:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+
+            Fix all code quality issues before re-tagging a release.
+
+            — Washify CI/CD
+
+  # ─────────────────────────────────────────────
+  # STAGE 2: Snyk Vulnerability Scan
+  # ─────────────────────────────────────────────
+  snyk:
+    name: Snyk Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: sonarqube
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk Scan
+        id: snyk_scan
+        uses: snyk/actions/python@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --fail-on=all
+
+      - name: Send Email — Snyk SUCCESS
+        if: steps.snyk_scan.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "✅ [PROD][PASS] Snyk Security Scan — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ✅ Snyk Scan PASSED for PRODUCTION release:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+
+            — Washify CI/CD
+
+      - name: Send Email — Snyk FAILURE
+        if: steps.snyk_scan.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "❌ [PROD][FAIL] Snyk Security Scan — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ❌ PRODUCTION RELEASE BLOCKED — Snyk FAILED:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+
+            Fix all HIGH/CRITICAL dependency vulnerabilities before releasing.
+
+            — Washify CI/CD
+
+      - name: Fail Job if Snyk Found Vulnerabilities
+        if: steps.snyk_scan.outcome == 'failure'
+        run: exit 1
+
+  # ─────────────────────────────────────────────
+  # STAGE 3: Docker Build
+  # ─────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: snyk
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.tag }}
+      full_image: ${{ steps.set_tag.outputs.full_image }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Image Tag (Prod = git tag version e.g. v1.1.1)
+        id: set_tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "full_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}" >> $GITHUB_OUTPUT
+          echo "Image will be tagged as: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image (not pushed yet)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.set_tag.outputs.full_image }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload Image as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+
+  # ─────────────────────────────────────────────
+  # STAGE 4: Trivy Image Scan
+  # ─────────────────────────────────────────────
+  trivy:
+    name: Trivy Image Scan
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker Image
+        run: docker load --input /tmp/image.tar
+
+      - name: Run Trivy Scan
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: ${{ needs.docker-build.outputs.full_image }}
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Send Email — Trivy SUCCESS
+        if: steps.trivy_scan.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "✅ [PROD][PASS] Trivy Image Scan — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ✅ Trivy Image Scan PASSED for PRODUCTION release:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+            Image      : ${{ needs.docker-build.outputs.full_image }}
+
+            Image is clean. Pushing to GHCR now.
+
+            — Washify CI/CD
+
+      - name: Send Email — Trivy FAILURE
+        if: steps.trivy_scan.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ env.DEV_TEAM_EMAIL }}
+          from: Washify CI <${{ secrets.MAIL_USERNAME }}>
+          subject: "❌ [PROD][FAIL] Trivy Image Scan — ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            Hello Dev Team,
+
+            ❌ PRODUCTION RELEASE BLOCKED — Trivy Image Scan FAILED:
+            Repository : ${{ github.repository }}
+            Release Tag: ${{ github.ref_name }}
+            Image      : ${{ needs.docker-build.outputs.full_image }}
+
+            Fix the HIGH/CRITICAL container vulnerabilities before releasing.
+
+            — Washify CI/CD
+
+      - name: Fail Job if Trivy Found Vulnerabilities
+        if: steps.trivy_scan.outcome == 'failure'
+        run: exit 1
+
+  # ─────────────────────────────────────────────
+  # STAGE 5: Push to GHCR (Prod — v1.1.1 tag)
+  # ─────────────────────────────────────────────
+  push-to-ghcr:
+    name: Push to GHCR
+    runs-on: ubuntu-latest
+    needs: [docker-build, trivy]
+    steps:
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker Image
+        run: docker load --input /tmp/image.tar
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Image to GHCR
+        run: docker push ${{ needs.docker-build.outputs.full_image }}
+
+  # ─────────────────────────────────────────────
+  # STAGE 6: Update GitOps Repo (Prod image tag)
+  # ─────────────────────────────────────────────
+  update-gitops:
+    name: Update GitOps Repo
+    runs-on: ubuntu-latest
+    needs: [docker-build, push-to-ghcr]
+    steps:
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          repository: WashifyApp/washify-gitops
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops
+
+      - name: Update Image Tag in Prod Helm Values
+        run: |
+          SERVICE="${{ github.event.repository.name }}"
+          TAG="${{ needs.docker-build.outputs.image_tag }}"
+          FILE="gitops/prod/apps/${SERVICE}/values.yaml"
+          sed -i "s|tag:.*|tag: ${TAG}|" $FILE
+          echo "Updated ${FILE} with tag: ${TAG}"
+
+      - name: Commit and Push to GitOps Repo
+        run: |
+          cd gitops
+          git config user.name "washify-ci-bot"
+          git config user.email "ci@washify.app"
+          git add .
+          git commit -m "chore(prod): release ${{ github.event.repository.name }} ${{ needs.docker-build.outputs.image_tag }}"
+          git push
